@@ -10,7 +10,7 @@ on:
 
 jobs:
   build_wheels:
-    name: Build CUDA wheel for Python ${{ matrix.python-version }}
+    name: Build CUDA wheel for Python ${{ matrix.python-version }} (sm${{ matrix.compute-cap }})
     runs-on: ubuntu-latest
     container:
       image: nvidia/cuda:13.1.0-devel-ubuntu24.04
@@ -18,6 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+        compute-cap: ["80", "89", "90"]
 
     steps:
       - name: Install system dependencies
@@ -49,13 +50,13 @@ jobs:
 
       - name: Build wheel
         env:
-          CUDA_COMPUTE_CAP: "80;89;90"
+          CUDA_COMPUTE_CAP: ${{ matrix.compute-cap }}
         run: maturin build --release --out dist
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-cuda-py${{ matrix.python-version }}
+          name: wheels-cuda-sm${{ matrix.compute-cap }}-py${{ matrix.python-version }}
           path: dist/*.whl
 
   publish:
