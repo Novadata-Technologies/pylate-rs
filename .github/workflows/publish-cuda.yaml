@@ -53,11 +53,16 @@ jobs:
           echo "INPUT(libcuda.so.1)" > /usr/local/cuda/lib64/libcuda.so
           ln -sf /usr/local/cuda/targets/x86_64-linux/lib/stubs/libcuda.so /usr/local/cuda/lib64/libcuda.so.1
 
+      - name: Install auditwheel
+        run: pip install auditwheel
+
       - name: Build wheel
         env:
           CUDA_COMPUTE_CAP: ${{ matrix.compute-cap }}
           LD_LIBRARY_PATH: /usr/local/cuda/lib64
-        run: maturin build --release --out dist
+        run: |
+          maturin build --release --skip-auditwheel --out target/wheels
+          auditwheel repair --exclude libcuda.so.1 -w dist target/wheels/*.whl
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
