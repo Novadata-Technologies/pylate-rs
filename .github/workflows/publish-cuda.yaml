@@ -60,23 +60,26 @@ jobs:
           path: dist/*.whl
 
   publish:
-    name: Publish to GitHub Releases
+    name: Publish sm${{ matrix.compute-cap }} to GitHub Releases
     needs: build_wheels
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    strategy:
+      matrix:
+        compute-cap: ["80", "89", "90"]
 
     steps:
-      - name: Download all wheels
+      - name: Download wheels for sm${{ matrix.compute-cap }}
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-cuda-*
+          pattern: wheels-cuda-sm${{ matrix.compute-cap }}-*
           path: dist
           merge-multiple: true
 
       - name: Create Release and Upload Wheels
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag_name }}
-          name: "CUDA Wheels - ${{ inputs.tag_name }}"
+          tag_name: ${{ inputs.tag_name }}-sm${{ matrix.compute-cap }}
+          name: "CUDA Wheels sm${{ matrix.compute-cap }} - ${{ inputs.tag_name }}"
           files: dist/*.whl
