@@ -48,6 +48,8 @@ jobs:
         run: python generate_configs.py cuda
 
       - name: Build wheel
+        env:
+          CUDA_COMPUTE_CAP: "80;89;90"
         run: maturin build --release --out dist
 
       - name: Upload wheel artifact
