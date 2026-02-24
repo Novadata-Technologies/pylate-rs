@@ -1,0 +1,79 @@
+name: Build and Publish CUDA Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v1.0.4-cuda)"
+        required: true
+        type: string
+
+jobs:
+  build_wheels:
+    name: Build CUDA wheel for Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:13.1.0-devel-ubuntu24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y software-properties-common curl git
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-venv python${{ matrix.python-version }}-dev
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python venv
+        run: |
+          python${{ matrix.python-version }} -m venv /opt/venv
+          echo "/opt/venv/bin" >> $GITHUB_PATH
+
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Python build dependencies
+        run: pip install maturin>=1.8.6 numpy>=1.26.4
+
+      - name: Generate CUDA pyproject.toml
+        run: python generate_configs.py cuda
+
+      - name: Build wheel
+        run: maturin build --release --out dist
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-cuda-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+  publish:
+    name: Publish to GitHub Releases
+    needs: build_wheels
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-cuda-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create Release and Upload Wheels
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          name: "CUDA Wheels - ${{ inputs.tag_name }}"
+          files: dist/*.whl
