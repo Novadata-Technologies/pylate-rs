@@ -43,14 +43,20 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install Python build dependencies
-        run: pip install maturin>=1.8.6 numpy>=1.26.4
+        run: pip install "maturin[patchelf]>=1.8.6" numpy>=1.26.4
 
       - name: Generate CUDA pyproject.toml
         run: python generate_configs.py cuda
 
+      - name: Create libcuda stub
+        run: |
+          echo "INPUT(libcuda.so.1)" > /usr/local/cuda/lib64/libcuda.so
+          ln -sf /usr/local/cuda/targets/x86_64-linux/lib/stubs/libcuda.so /usr/local/cuda/lib64/libcuda.so.1
+
       - name: Build wheel
         env:
           CUDA_COMPUTE_CAP: ${{ matrix.compute-cap }}
+          LD_LIBRARY_PATH: /usr/local/cuda/lib64
         run: maturin build --release --out dist
 
       - name: Upload wheel artifact
